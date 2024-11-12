@@ -25,4 +25,5 @@ func (r *Route) Init() {
 
 func (r *Route) ProductRoutes() {
 	r.Mux.HandleFunc("GET /oauth", r.ProductHandler.Authorize)
+	r.Mux.HandleFunc("GET /oauth/callback", r.ProductHandler.Callback)
 }
