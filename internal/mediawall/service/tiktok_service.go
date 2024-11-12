@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,7 +28,7 @@ func (s *TikTokService) GetOAuthURL() string {
 
 	query.Add("client_key", viper.GetString("tiktok.client_key"))
 	query.Add("response_type", "code")
-	query.Add("scope", "user.info.basic")
+	query.Add("scope", "user.info.basic,video.list")
 	query.Add("redirect_uri", viper.GetString("tiktok.redirect_url"))
 	query.Add("state", pkg.RandString(4))
 
@@ -62,15 +63,55 @@ func (s *TikTokService) GetAccessToken(code string) (*model.OAuthResponse, error
 
 	body, _ := io.ReadAll(resp.Body)
 
-	var oAuthResponseError model.OAuthResponseError
+	var oAuthResponseError *model.OAuthResponseError
 	json.Unmarshal(body, &oAuthResponseError)
 
 	if oAuthResponseError.Error != "" {
 		return nil, fmt.Errorf("error: %s - %s", oAuthResponseError.Error, oAuthResponseError.ErrorDescription)
 	}
 
-	var oAuthResponse model.OAuthResponse
+	var oAuthResponse *model.OAuthResponse
 	json.Unmarshal(body, &oAuthResponse)
 
-	return &oAuthResponse, nil
+	return oAuthResponse, nil
+}
+
+func (s *TikTokService) QueryVideos(accessToken string) (*model.QueryUserVideoResponse, error) {
+	baseUrl, _ := url.Parse("https://open.tiktokapis.com/v2/video/query/")
+
+	query := baseUrl.Query()
+
+	query.Add("fields", "id,title")
+
+	baseUrl.RawQuery = query.Encode()
+
+	requestBody := []byte(`{ 
+		"filters": { 
+			"video_ids": [
+				"1234123412345678567",
+				"1010102020203030303"
+			]
+		}
+	}`)
+
+	client := &http.Client{}
+	r, err := http.NewRequest(http.MethodPost, baseUrl.String(), bytes.NewBuffer(requestBody))
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Add("Content-Type", "application/json")
+	r.Header.Add("Authorization", "Bearer "+accessToken)
+
+	resp, err := client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+
+	var queryUserVideoResponse *model.QueryUserVideoResponse
+	json.Unmarshal(body, &queryUserVideoResponse)
+
+	return queryUserVideoResponse, nil
 }

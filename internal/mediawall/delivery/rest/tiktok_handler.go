@@ -19,7 +19,7 @@ func NewTikTokHandler(service *service.TikTokService) *TikTokHandler {
 
 func (h *TikTokHandler) Authorize(w http.ResponseWriter, r *http.Request) {
 	oAuthURL := h.service.GetOAuthURL()
-	http.Redirect(w, r, oAuthURL, 200)
+	http.Redirect(w, r, oAuthURL, http.StatusSeeOther)
 }
 
 func (h *TikTokHandler) Callback(w http.ResponseWriter, r *http.Request) {
@@ -30,5 +30,33 @@ func (h *TikTokHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:  "access_token",
+		Value: oAuthResponse.AccessToken,
+		Path:  "/",
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  "refresh_token",
+		Value: oAuthResponse.RefreshToken,
+		Path:  "/",
+	})
+
 	pkg.SendSuccess(w, oAuthResponse)
+}
+
+func (h *TikTokHandler) QueryVideos(w http.ResponseWriter, r *http.Request) {
+	accessToken, err := r.Cookie("access_token")
+	if err != nil {
+		pkg.SendError(w, 500, err.Error())
+		return
+	}
+
+	queryVideos, err := h.service.QueryVideos(accessToken.Value)
+	if err != nil {
+		pkg.SendError(w, 500, err.Error())
+		return
+	}
+
+	pkg.SendSuccess(w, queryVideos)
 }

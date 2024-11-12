@@ -9,13 +9,13 @@ import (
 type Route struct {
 	Mux *http.ServeMux
 
-	ProductHandler *rest.TikTokHandler
+	TikTokHandler *rest.TikTokHandler
 }
 
 func NewRoutes(tiktokHandler *rest.TikTokHandler) *Route {
 	return &Route{
-		Mux:            http.NewServeMux(),
-		ProductHandler: tiktokHandler,
+		Mux:           http.NewServeMux(),
+		TikTokHandler: tiktokHandler,
 	}
 }
 
@@ -24,6 +24,7 @@ func (r *Route) Init() {
 }
 
 func (r *Route) ProductRoutes() {
-	r.Mux.HandleFunc("GET /oauth", r.ProductHandler.Authorize)
-	r.Mux.HandleFunc("GET /oauth/callback", r.ProductHandler.Callback)
+	r.Mux.HandleFunc("GET /oauth", r.TikTokHandler.Authorize)
+	r.Mux.HandleFunc("GET /oauth/callback", r.TikTokHandler.Callback)
+	r.Mux.HandleFunc("GET /video", r.TikTokHandler.QueryVideos)
 }

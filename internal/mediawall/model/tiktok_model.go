@@ -15,3 +15,23 @@ type OAuthResponseError struct {
 	ErrorDescription string `json:"error_description,omitempty"`
 	LogID            string `json:"log_id,omitempty"`
 }
+
+type QueryUserVideoResponse struct {
+	Data  string              `json:"data,omitempty"`
+	Error TikTokErrorResponse `json:"error,omitempty"`
+}
+
+type QueryUserVideoData struct {
+	Videos []VideoData `json:"videos,omitempty"`
+}
+
+type VideoData struct {
+	Title string `json:"title,omitempty"`
+	ID    string `json:"id,omitempty"`
+}
+
+type TikTokErrorResponse struct {
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message,omitempty"`
+	LogID   string `json:"log_id,omitempty"`
+}
