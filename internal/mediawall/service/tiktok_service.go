@@ -1,16 +1,12 @@
 package service
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
-	"strings"
 
-	"github.com/agilistikmal/media-wall-go/internal/mediawall/model"
-	"github.com/agilistikmal/media-wall-go/internal/pkg"
 	"github.com/spf13/viper"
 )
 
@@ -21,41 +17,58 @@ func NewTikTokService() *TikTokService {
 	return &TikTokService{}
 }
 
-func (s *TikTokService) GetOAuthURL() string {
-	baseUrl, _ := url.Parse("https://www.tiktok.com/v2/auth/authorize/")
+var tiktokDefaultParams = map[string]string{
+	"aid":              "1988",
+	"app_name":         "tiktok_web",
+	"device_platform":  "web",
+	"referer":          "",
+	"user_agent":       "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:79.0) Gecko/20100101 Firefox/79.0",
+	"cookie_enabled":   "true",
+	"screen_width":     "1920",
+	"screen_height":    "1080",
+	"browser_language": "en-US",
+	"browser_platform": "Linux+x86_64",
+	"browser_name":     "Mozilla",
+	"browser_version":  "5.0+(X11)",
+	"browser_online":   "true",
+	"timezone_name":    "Asia/Jakarta",
+	"priority_region":  "ID",
 
-	query := baseUrl.Query()
+	"appId":   "1180",
+	"region":  "ID",
+	"appType": "t",
 
-	query.Add("client_key", viper.GetString("tiktok.client_key"))
-	query.Add("response_type", "code")
-	query.Add("scope", "user.info.basic,video.list")
-	query.Add("redirect_uri", viper.GetString("tiktok.redirect_url"))
-	query.Add("state", pkg.RandString(4))
-
-	baseUrl.RawQuery = query.Encode()
-
-	return baseUrl.String()
+	"isAndroid":     "false",
+	"isMobile":      "false",
+	"isIOS":         "false",
+	"OS":            "linux",
+	"tt-web-region": "ID",
+	"language":      "en-US",
+	"verifyFp":      "verify_kjf974fd_y7bupmR0_3uRm_43kF_Awde_8K95qt0GcpBk",
 }
 
-func (s *TikTokService) GetAccessToken(code string) (*model.OAuthResponse, error) {
-	baseUrl, _ := url.Parse("https://open.tiktokapis.com/v2/oauth/token/")
-
-	data := url.Values{}
-
-	data.Set("client_key", viper.GetString("tiktok.client_key"))
-	data.Set("client_secret", viper.GetString("tiktok.client_secret"))
-	data.Set("code", code)
-	data.Set("grant_type", "authorization_code")
-	data.Set("redirect_uri", viper.GetString("tiktok.redirect_url"))
-
-	client := &http.Client{}
-	r, err := http.NewRequest(http.MethodPost, baseUrl.String(), strings.NewReader(data.Encode()))
+func (s *TikTokService) GetFYPVideos(count int) (*string, error) {
+	uri, err := url.Parse(viper.GetString("tiktok.base_url.fyp"))
 	if err != nil {
 		return nil, err
 	}
-	r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := client.Do(r)
+	requestParams := map[string]string{
+		"id":        "1",
+		"from_page": "fyp",
+		"count":     fmt.Sprint(count),
+	}
+
+	values := uri.Query()
+	for key, value := range requestParams {
+		values.Set(key, value)
+	}
+
+	uri.RawPath = values.Encode()
+
+	log.Println(uri.String())
+
+	resp, err := http.Get(uri.String())
 	if err != nil {
 		return nil, err
 	}
@@ -63,55 +76,11 @@ func (s *TikTokService) GetAccessToken(code string) (*model.OAuthResponse, error
 
 	body, _ := io.ReadAll(resp.Body)
 
-	var oAuthResponseError *model.OAuthResponseError
-	json.Unmarshal(body, &oAuthResponseError)
+	fmt.Println(string(body))
 
-	if oAuthResponseError.Error != "" {
-		return nil, fmt.Errorf("error: %s - %s", oAuthResponseError.Error, oAuthResponseError.ErrorDescription)
-	}
-
-	var oAuthResponse *model.OAuthResponse
-	json.Unmarshal(body, &oAuthResponse)
-
-	return oAuthResponse, nil
+	return nil, nil
 }
 
-func (s *TikTokService) QueryVideos(accessToken string) (*model.QueryUserVideoResponse, error) {
-	baseUrl, _ := url.Parse("https://open.tiktokapis.com/v2/video/query/")
+func (s *TikTokService) SearchVideos(keyword string) {
 
-	query := baseUrl.Query()
-
-	query.Add("fields", "id,title")
-
-	baseUrl.RawQuery = query.Encode()
-
-	requestBody := []byte(`{ 
-		"filters": { 
-			"video_ids": [
-				"1234123412345678567",
-				"1010102020203030303"
-			]
-		}
-	}`)
-
-	client := &http.Client{}
-	r, err := http.NewRequest(http.MethodPost, baseUrl.String(), bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, err
-	}
-	r.Header.Add("Content-Type", "application/json")
-	r.Header.Add("Authorization", "Bearer "+accessToken)
-
-	resp, err := client.Do(r)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-
-	var queryUserVideoResponse *model.QueryUserVideoResponse
-	json.Unmarshal(body, &queryUserVideoResponse)
-
-	return queryUserVideoResponse, nil
 }
